@@ -3,7 +3,7 @@ import numpy as np
 
 
 
-def calculate_spo2_from_ppg(ppg_signal, sampling_rate=50):
+def calculate_spo2_from_ppg(ppg_signal, sampling_rate=50, time_interval=0.4):
     """
     基于单通道PPG信号估算SpO2
     
@@ -28,10 +28,10 @@ def calculate_spo2_from_ppg(ppg_signal, sampling_rate=50):
     ppg_filtered = filtfilt(b, a, ppg_signal)
     
     # 找到峰值和谷值
-    peaks, _ = find_peaks(ppg_filtered, distance=sampling_rate*0.4)  # 至少间隔0.4秒
-    valleys, _ = find_peaks(-ppg_filtered, distance=sampling_rate*0.4)
+    peaks, _ = find_peaks(ppg_filtered, distance=sampling_rate * time_interval)
+    valleys, _ = find_peaks(-ppg_filtered, distance=sampling_rate*time_interval)
     
-    print(ppg_filtered)
+    # print(ppg_filtered)
     print(peaks,valleys)
     
     if len(peaks) < 2 or len(valleys) < 2:
@@ -67,16 +67,24 @@ def calculate_spo2_from_ppg(ppg_signal, sampling_rate=50):
     # 使用修正的经验公式
     # 对于健康人群的PPG信号，通常SpO2在95-100%
     # 原始对数公式：
-    # spo2 = 110 - 25 * np.log10(normalized_ratio + 1)
+    # spo2 = 110 - 25 * np.log10(ratio + 1)
     
-    # 使用3次多项式近似（在90-100%范围内，RMSE: 0.01%, Max Error: 0.036%）
+    # 使用3次多项式近似 RW-PPG
     # 优势：避免对数运算，计算速度更快
-    spo2 = (-4.5837351812e-02 * normalized_ratio**3 + 
-            7.7521128177e-01 * normalized_ratio**2 + 
-            -6.1491433678e+00 * normalized_ratio + 
-            1.0764977008e+02)
-    
+    # spo2 = (-4.5837351812e-02 * normalized_ratio**3 + 
+    #         7.7521128177e-01 * normalized_ratio**2 + 
+    #         -6.1491433678e+00 * normalized_ratio + 
+    #         1.0764977008e+02)
+
+    spo2 = (-3.7465271198e+01 * ratio**3 + 
+            5.8403912586e+01 * ratio**2 + 
+            -3.7079378855e+01 * ratio + 
+            1.0016136403e+02)
+
     # 限制SpO2在合理范围 (90-100%)
     spo2 = np.clip(spo2, 90, 100)
+    
+
+    
     
     return spo2, ratio

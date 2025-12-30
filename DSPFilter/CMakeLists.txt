@@ -23,7 +23,7 @@ endif()
 
 
 # 创建示例可执行文件
-add_executable(main_example main1.cpp)
+add_executable(main_example main.cpp)
 
 # 链接 DSPFilters 库
 target_link_libraries(main_example PRIVATE DSPFilters)
