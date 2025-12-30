@@ -1,1 +1,0 @@
-#include "juce_opengl_amalgam.cpp"
