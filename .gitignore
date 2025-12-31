@@ -3,6 +3,12 @@
 /DSPFilter/output_data
 /DSPFilter/output_signal_figure
 
+.cursor
+.vscode
+.idea
+
+*.zip
+
 # DSPFilters构建产物
 DSPFilter/build/
 
@@ -187,12 +193,9 @@ xcuserdata/
 
 # ==================== 编辑器 ====================
 # VSCode
-.vscode/
 *.code-workspace
 .history/
 
-# Cursor
-.cursor/
 
 # Vim
 *.swp
@@ -210,7 +213,6 @@ xcuserdata/
 *.sublime-project
 
 # JetBrains IDEs (CLion, PyCharm, etc.)
-.idea/
 *.iml
 *.ipr
 *.iws
