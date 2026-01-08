@@ -72,5 +72,49 @@ std::vector<float> RealtimeBuffer::get_data() const {
     return std::vector<float>(buffer_.begin(), buffer_.end());
 }
 
+// ==================== RealtimeBufferInt16 实现 ====================
+
+RealtimeBufferInt16::RealtimeBufferInt16(size_t capacity) 
+    : capacity_(capacity) {
+    buffer_.clear();
+}
+
+void RealtimeBufferInt16::push(int16_t sample) {
+    if (buffer_.size() >= capacity_) {
+        buffer_.pop_front();  // 移除最旧的样本
+    }
+    buffer_.push_back(sample);  // 添加新样本
+}
+
+std::vector<int16_t> RealtimeBufferInt16::get_data_int() const {
+    return std::vector<int16_t>(buffer_.begin(), buffer_.end());
+}
+
+std::vector<float> RealtimeBufferInt16::get_data_float() const {
+    std::vector<float> result;
+    result.reserve(buffer_.size());
+    for (auto val : buffer_) {
+        result.push_back(static_cast<float>(val));
+    }
+    return result;
+}
+
+std::vector<float> RealtimeBufferInt16::get_data_float(size_t start_idx, size_t length) const {
+    if (start_idx >= buffer_.size()) {
+        return {};
+    }
+    
+    size_t actual_length = std::min(length, buffer_.size() - start_idx);
+    std::vector<float> result;
+    result.reserve(actual_length);
+    
+    auto it = buffer_.begin() + start_idx;
+    for (size_t i = 0; i < actual_length; ++i, ++it) {
+        result.push_back(static_cast<float>(*it));
+    }
+    
+    return result;
+}
+
 } // namespace ppg
 

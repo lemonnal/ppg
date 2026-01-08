@@ -5,9 +5,15 @@
 #include <deque>
 #include <chrono>
 #include <thread>
+#include <cmath>
 #include "include/realtime_filter.hpp"
 #include "include/ppg_analysis.hpp"
 #include "include/find_peaks.hpp"
+
+// ==================== 内存优化配置 ====================
+// 使用整型缓冲区可节省 50% 内存（24KB → 12KB）
+// 代价：滤波后的数据会损失小数精度
+#define USE_INT16_BUFFER 1  // 1=使用整型(节省内存), 0=使用浮点(保持精度)
 
 /**
  * @brief 实时PPG信号处理系统
@@ -23,18 +29,18 @@ int main() {
     try {
         // ==================== 系统配置 ====================
         const std::string data_file = "/home/yogsothoth/桌面/workspace-ppg/aaaPyTest/concat_259_3.txt";
-        const double SAMPLE_RATE = 1000.0;  // 采样率 1000 Hz
+        const double SAMPLE_RATE = 500.0;  // 采样率 1000 Hz
         const double LOW_FREQ = 0.5;        // 低频截止
         const double HIGH_FREQ = 20.0;      // 高频截止
         const int FILTER_ORDER = 3;         // 滤波器阶数
         
         // 缓冲区配置（模拟嵌入式系统的内存限制）
-        const size_t BUFFER_SIZE = 3000;     // 3秒的数据 (3000样本 @ 1000Hz)
         const size_t ANALYSIS_WINDOW = 2100; // 分析窗口：2.1秒（与原始代码一致）
-        const size_t UPDATE_INTERVAL = 1200;  // 每1.2秒更新一次分析
+        const size_t BUFFER_SIZE = ANALYSIS_WINDOW + 200;     // 2.3秒的数据 (2300样本 @ 1000Hz)
+        const size_t UPDATE_INTERVAL = ANALYSIS_WINDOW / 2;  // 每1.2秒更新一次分析
         
         // 是否实时模拟（添加延迟）
-        const bool SIMULATE_REALTIME = false;  // true: 按实际采样率添加延迟
+        const bool SIMULATE_REALTIME = true;  // true: 按实际采样率添加延迟
         const double SAMPLE_INTERVAL_MS = 1.0; // 1ms per sample @ 1000Hz
         
         std::cout << "\n" << std::string(70, '=') << std::endl;
@@ -62,10 +68,19 @@ int main() {
         ppg::RealtimeFilter filter(LOW_FREQ, HIGH_FREQ, SAMPLE_RATE, FILTER_ORDER);
         
         // 2. 创建数据缓冲区
-        ppg::RealtimeBuffer raw_buffer(BUFFER_SIZE);      // 原始信号缓冲区
-        ppg::RealtimeBuffer filtered_buffer(BUFFER_SIZE); // 滤波信号缓冲区
+#if USE_INT16_BUFFER
+        ppg::RealtimeBufferInt16 raw_buffer(BUFFER_SIZE);      // 原始信号缓冲区 (int16)
+        ppg::RealtimeBufferInt16 filtered_buffer(BUFFER_SIZE); // 滤波信号缓冲区 (int16)
         
-        std::cout << "  ✓ 数据缓冲区创建完成" << std::endl;
+        std::cout << "  ✓ 数据缓冲区创建完成 (16位整型: " 
+                  << (BUFFER_SIZE * 2 * 2) / 1024.0 << "KB)" << std::endl;
+#else
+        ppg::RealtimeBuffer raw_buffer(BUFFER_SIZE);      // 原始信号缓冲区 (float)
+        ppg::RealtimeBuffer filtered_buffer(BUFFER_SIZE); // 滤波信号缓冲区 (float)
+        
+        std::cout << "  ✓ 数据缓冲区创建完成 (32位浮点: " 
+                  << (BUFFER_SIZE * 2 * 4) / 1024.0 << " KB)" << std::endl;
+#endif
         
         // 3. 打开数据文件
         std::ifstream data_stream(data_file);
@@ -117,6 +132,29 @@ int main() {
         
         // 逐样本读取并处理
         while (std::getline(data_stream, line)) {
+#if USE_INT16_BUFFER
+            // 整型缓冲区模式：节省内存但损失精度
+            int16_t raw_sample;
+            try {
+                raw_sample = static_cast<int16_t>(std::stoi(line));
+            } catch (...) {
+                continue;  // 跳过无效数据
+            }
+            
+            // 步骤1: 实时滤波（需要转换为float）
+            float raw_sample_float = static_cast<float>(raw_sample);
+            float filtered_sample_float = filter.process_sample(raw_sample_float);
+            
+            // 四舍五入转换为整型（损失小数精度但节省内存）
+            int16_t filtered_sample_int = static_cast<int16_t>(
+                std::round(filtered_sample_float)
+            );
+            
+            // 步骤2: 添加到缓冲区
+            raw_buffer.push(raw_sample);
+            filtered_buffer.push(filtered_sample_int);
+#else
+            // 浮点缓冲区模式：保持精度
             float raw_sample;
             try {
                 raw_sample = std::stof(line);
@@ -130,6 +168,7 @@ int main() {
             // 步骤2: 添加到缓冲区
             raw_buffer.push(raw_sample);
             filtered_buffer.push(filtered_sample);
+#endif
             
             sample_count++;
             
@@ -140,7 +179,22 @@ int main() {
                 analysis_count++;
                 last_analysis_count = sample_count;
                 
-                // 获取当前窗口数据
+#if USE_INT16_BUFFER
+                // 整型缓冲区：只获取需要的窗口数据并转换为浮点
+                size_t start_idx = 0;
+                if (filtered_buffer.size() > ANALYSIS_WINDOW) {
+                    start_idx = filtered_buffer.size() - ANALYSIS_WINDOW;
+                }
+                
+                // 直接获取指定范围的浮点数据，减少内存拷贝
+                std::vector<float> filtered_data = filtered_buffer.get_data_float(
+                    start_idx, ANALYSIS_WINDOW
+                );
+                std::vector<float> raw_data = raw_buffer.get_data_float(
+                    start_idx, ANALYSIS_WINDOW
+                );
+#else
+                // 浮点缓冲区：获取当前窗口数据
                 std::vector<float> raw_data = raw_buffer.get_data();
                 std::vector<float> filtered_data = filtered_buffer.get_data();
                 
@@ -156,6 +210,7 @@ int main() {
                         raw_data.end()
                     );
                 }
+#endif
                 
                 // 峰值检测
                 std::vector<int> peaks, valleys;
