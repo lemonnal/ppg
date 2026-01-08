@@ -36,7 +36,7 @@ print_warning() {
 }
 
 # 获取提交信息
-COMMIT_MSG=${1:-"try auto commit"}
+COMMIT_MSG=${1:-"try auto commit1"}
 
 # 开始执行
 clear
