@@ -69,7 +69,7 @@ namespace ppg
             }
         }
 
-        // 计算平均AC分量（峰峰值）- 改进版：匹配峰值前后的谷值
+        // 计算平均AC分量（峰峰值）- 匹配峰值前后的谷值
         ac_component = 0.0f;
         if (!peaks.empty() && !valleys.empty())
         {
@@ -223,36 +223,8 @@ namespace ppg
         // 限制在合理范围 (70-100%)
         spo2 = std::max(70.0f, std::min(100.0f, spo2));
 
-        std::cout << "\n  ┌─────────────────────────────────────┐" << std::endl;
-        std::cout << "  │  估算SpO2: " << std::fixed << std::setprecision(1)
-                  << std::setw(5) << spo2 << "%              │" << std::endl;
-        std::cout << "  └─────────────────────────────────────┘" << std::endl;
-
-        // 健康状态评估
-        std::cout << "\n  【健康评估】" << std::endl;
-        if (spo2 >= 95.0f)
-        {
-            std::cout << "    状态: 正常 ✓" << std::endl;
-            std::cout << "    说明: SpO2 ≥ 95%，血氧饱和度正常" << std::endl;
-        }
-        else if (spo2 >= 90.0f)
-        {
-            std::cout << "    状态: 轻度缺氧 ⚠" << std::endl;
-            std::cout << "    说明: 90% ≤ SpO2 < 95%，建议关注" << std::endl;
-        }
-        else if (spo2 >= 85.0f)
-        {
-            std::cout << "    状态: 中度缺氧 ⚠⚠" << std::endl;
-            std::cout << "    说明: 85% ≤ SpO2 < 90%，需要注意" << std::endl;
-        }
-        else
-        {
-            std::cout << "    状态: 严重缺氧 ✗" << std::endl;
-            std::cout << "    说明: SpO2 < 85%，建议就医" << std::endl;
-        }
-
-        std::cout << "\n  注意: 此为估算值，实际精度受传感器和算法影响" << std::endl;
-        std::cout << "        医疗级设备精度: ±2%，消费级设备: ±3-5%" << std::endl;
+        std::cout << "  估算SpO2: " << std::fixed << std::setprecision(1)
+                  << std::setw(5) << spo2 << "%" << std::endl;
 
         return true;
     }

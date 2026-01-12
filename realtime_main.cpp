@@ -202,7 +202,7 @@ int main()
                     start_idx = filtered_buffer_red.size() - ANALYSIS_WINDOW;
                 }
 
-                // 直接获取指定范围的浮点数据，减少内存拷贝
+                // 获取滤波数据和原始数据
                 std::vector<float> filtered_data_red = filtered_buffer_red.get_data_float(
                     start_idx, ANALYSIS_WINDOW);
                 std::vector<float> raw_data_red = raw_buffer_red.get_data_float(
